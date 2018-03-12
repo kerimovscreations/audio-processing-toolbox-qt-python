@@ -4,7 +4,7 @@ import sys
 from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QApplication, QMainWindow, QAction, QFileDialog
 from audiorecplot import AudioRecPlot
-from dragdroparea import DragDropArea
+from contentview import ContentView
 
 
 class MainApp(QMainWindow):
@@ -28,7 +28,7 @@ class MainApp(QMainWindow):
 
         self.toolbar.actionTriggered[QAction].connect(self.toolbar_btn_click)
 
-        self.setCentralWidget(DragDropArea())
+        self.setCentralWidget(ContentView())
         self.setWindowTitle("Toolbar")
 
         self.show()
