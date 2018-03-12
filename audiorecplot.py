@@ -6,7 +6,7 @@ from PyQt5.QtCore import QIODevice
 from xyseriesiodevice import XYSeriesIODevice
 
 
-class Widget(QWidget):
+class AudioRecPlot(QWidget):
 
     def __init__(self):
         super().__init__()
@@ -37,7 +37,7 @@ class Widget(QWidget):
         self.setLayout(main_layout)
 
         format_audio = QAudioFormat()
-        format_audio.setSampleRate(8000)
+        format_audio.setSampleRate(48000)
         format_audio.setChannelCount(1)
         format_audio.setSampleSize(8)
         format_audio.setCodec("audio/pcm")
