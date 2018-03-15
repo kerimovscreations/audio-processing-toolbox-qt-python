@@ -29,13 +29,14 @@ class MainApp(QMainWindow):
         self.toolbar.actionTriggered[QAction].connect(self.toolbar_btn_click)
 
         self.setCentralWidget(ContentView())
-        self.setWindowTitle("Toolbar")
+        self.setWindowTitle("Audio signal toolbox")
 
         self.show()
 
     def toolbar_btn_click(self, a):
         if a.text() == "New":
-            self.setCentralWidget(AudioRecPlot())
+            # self.setCentralWidget(AudioRecPlot())
+            self.setCentralWidget(ContentView())
         elif a.text() == "Open":
             self.open_file()
         elif a.text() == "Save":
