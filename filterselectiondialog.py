@@ -52,9 +52,10 @@ class FilterSelectionDialog(QDialog):
         self.input_2.setValue(0)
         self.input_2.setTickPosition(QSlider.TicksBelow)
         self.input_2.setTickInterval(5)
+        self.input_2.setEnabled(False)
         self.input_2.valueChanged.connect(self.value_changed_2)
 
-        self.indicator_2.setText("0.0")
+        self.indicator_2.setText("Disabled")
         main_layout.addWidget(self.indicator_2)
         main_layout.addWidget(self.input_2)
 
@@ -71,7 +72,12 @@ class FilterSelectionDialog(QDialog):
         print("Current index", i, "selection changed ", self.select_filter_type.currentText())
 
     def on_filter_type_select2(self, i):
-        print("Current index", i, "selection changed ", self.select_filter_type2.currentText())
+        self.input_2.setEnabled(i > 1)
+        if i > 1:
+            size = self.input_2.value()
+            self.indicator_2.setText(str(size / 100))
+        else:
+            self.indicator_2.setText("Disabled")
 
     def value_changed_1(self):
         size = self.input_1.value()
@@ -86,4 +92,4 @@ class FilterSelectionDialog(QDialog):
         dialog = FilterSelectionDialog(parent)
         result = dialog.exec_()
         return (dialog.select_filter_type.currentText(), dialog.select_filter_type2.currentText(),
-                dialog.input_1.value(), dialog.input_2.value(), result == QDialog.Accepted)
+                dialog.input_1.value() / 100, dialog.input_2.value() / 100, result == QDialog.Accepted)

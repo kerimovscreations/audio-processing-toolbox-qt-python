@@ -8,6 +8,8 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog, QComboBox
 from scipy import fftpack
 from scipy.io import wavfile
+import scipy.signal as signal
+import matplotlib.pyplot as plt
 
 from dragdroparea import DragDropArea
 from filterselectiondialog import FilterSelectionDialog
@@ -165,13 +167,6 @@ class ContentView(QWidget):
 
         player_layout.addWidget(play_btn)
 
-        # save_ic = QIcon('save_ic.png')
-        # save_btn = QPushButton('Save')
-        # save_btn.setIcon(save_ic)
-        # save_btn.clicked.connect(self.on_save)
-        #
-        # player_layout.addWidget(save_btn)
-
         main_layout.addLayout(player_layout)
 
         self.setLayout(main_layout)
@@ -248,7 +243,54 @@ class ContentView(QWidget):
     def on_filter(self):
         print("on_filter")
 
-        filer, filter2, limit1, limit2, ok = FilterSelectionDialog.show_dialog(parent=self)
+        filter1, filter2, limit1, limit2, ok = FilterSelectionDialog.show_dialog(parent=self)
+        print(filter1, filter2, limit1, limit2, ok)
+
+        if ok:
+            if filter1 == "FIR filter":
+                self.on_fir_filter(filter2, limit1, limit2)
+            elif filter1 == "IIR filter":
+                self.on_iir_filter(filter2, limit1, limit2)
+
+    def on_fir_filter(self, filter_type, limit1, limit2):
+        if filter_type == "Low-pass":
+            design_filter = signal.firwin(41, limit1)
+        elif filter_type == "High-pass":
+            temp = np.zeros(41)
+            temp[20] = 1
+            design_filter = temp - np.array(signal.firwin(41, limit1))
+        elif filter_type == "Band-pass":
+            temp = np.zeros(41)
+            temp[20] = 1
+            design_filter = temp - np.array(signal.firwin(41, [limit1, limit2]))
+        elif filter_type == "Band-reject":
+            design_filter = signal.firwin(41, [limit1, limit2])
+
+        w1, h1 = signal.freqz(design_filter)
+        plt.title('Digital filter frequency response')
+        plt.plot(w1, 20 * np.log10(np.abs(h1)), 'b')
+        plt.ylabel('Amplitude Response (dB)')
+        plt.xlabel('Frequency (rad/sample)')
+        plt.grid()
+        plt.show()
+
+    def on_iir_filter(self, filter_type, limit1, limit2):
+        if filter_type == "Low-pass":
+            b, a = signal.iirfilter(4, limit1, rp=5, rs=60, btype='lowpass', ftype='ellip')
+        elif filter_type == "High-pass":
+            b, a = signal.iirfilter(4, limit1, rp=5, rs=60, btype='highpass', ftype='ellip')
+        elif filter_type == "Band-pass":
+            b, a = signal.iirfilter(4, [limit1, limit2], rp=5, rs=60, btype='bandpass', ftype='ellip')
+        elif filter_type == "Band-reject":
+            b, a = signal.iirfilter(4, [limit1, limit2], rp=5, rs=60, btype='bandstop', ftype='ellip')
+
+        w1, h1 = signal.freqz(b, a)
+        plt.title('Digital filter frequency response')
+        plt.plot(w1, 20 * np.log10(np.abs(h1)), 'b')
+        plt.ylabel('Amplitude Response (dB)')
+        plt.xlabel('Frequency (rad/sample)')
+        plt.grid()
+        plt.show()
 
     def on_play(self):
         if len(self.y_processed) > 0:
