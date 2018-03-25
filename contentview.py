@@ -175,15 +175,22 @@ class ContentView(QWidget):
         path1 = QFileDialog.getOpenFileName(self, 'Open File', os.getenv('HOME'), '*.wav')
         print(path1[0])
 
-        rate1, data1 = wavfile.read(path1[0])
-        self.show_info(rate1, data1)
+        rate, data = wavfile.read(path1[0])
+
+        self.sampling_rate = rate
+        self.y_original = data[:, 0]
+
+        self.show_original_data()
 
     def on_file_upload(self, file_url):
         print(file_url[7:])
 
         rate, data = wavfile.read(file_url[7:])
 
-        self.show_info(rate, data)
+        self.sampling_rate = rate
+        self.y_original = data[:, 0]
+
+        self.show_original_data()
 
     def on_action_drop_select(self, i):
         print("Items in the list are :")
@@ -203,40 +210,7 @@ class ContentView(QWidget):
             noise = np.random.normal(0, self.y_original.max() / 30, len(self.y_original))
             arr1 = np.array(self.y_original)
             self.y_processed = arr1 + noise
-
-            # Time domain
-            y_data_scaled = np.interp(self.y_processed, (self.y_processed.min(), self.y_processed.max()), (-10, +10))
-
-            points_3 = []
-
-            for k in range(len(y_data_scaled)):
-                points_3.append(QPointF(self.x_data[k], y_data_scaled[k]))
-
-            self.m_series_3.replace(points_3)
-
-            # Frequency domain
-            y_freq_data = np.abs(fftpack.fft(self.y_processed))
-            y_freq_data = np.interp(y_freq_data, (y_freq_data.min(), y_freq_data.max()), (0, +10))
-            x_freq_data = fftpack.fftfreq(len(self.y_processed)) * self.sampling_rate
-
-            axis_x = QValueAxis()
-            axis_x.setRange(0, self.sampling_rate / 2)
-            axis_x.setLabelFormat("%g")
-            axis_x.setTitleText("Frequency [Hz]")
-
-            axis_y = QValueAxis()
-            axis_y.setRange(np.min(y_freq_data), np.max(y_freq_data))
-            axis_y.setTitleText("Magnitude")
-
-            self.m_chart_4.setAxisX(axis_x, self.m_series_4)
-            self.m_chart_4.setAxisY(axis_y, self.m_series_4)
-
-            points_4 = []
-
-            for k in range(len(y_freq_data)):
-                points_4.append(QPointF(x_freq_data[k], y_freq_data[k]))
-
-            self.m_series_4.replace(points_4)
+            self.show_processed_data()
         else:
             print("Not data to process")
 
@@ -266,13 +240,17 @@ class ContentView(QWidget):
         elif filter_type == "Band-reject":
             design_filter = signal.firwin(41, [limit1, limit2])
 
-        w1, h1 = signal.freqz(design_filter)
-        plt.title('Digital filter frequency response')
-        plt.plot(w1, 20 * np.log10(np.abs(h1)), 'b')
-        plt.ylabel('Amplitude Response (dB)')
-        plt.xlabel('Frequency (rad/sample)')
-        plt.grid()
-        plt.show()
+        self.y_processed = signal.convolve(self.y_original, design_filter, mode='same')
+
+        # w1, h1 = signal.freqz(design_filter)
+        # plt.title('Digital filter frequency response')
+        # plt.plot(w1, 20 * np.log10(np.abs(h1)), 'b')
+        # plt.ylabel('Amplitude Response (dB)')
+        # plt.xlabel('Frequency (rad/sample)')
+        # plt.grid()
+        # plt.show()
+
+        self.show_processed_data()
 
     def on_iir_filter(self, filter_type, limit1, limit2):
         if filter_type == "Low-pass":
@@ -284,13 +262,17 @@ class ContentView(QWidget):
         elif filter_type == "Band-reject":
             b, a = signal.iirfilter(4, [limit1, limit2], rp=5, rs=60, btype='bandstop', ftype='ellip')
 
-        w1, h1 = signal.freqz(b, a)
-        plt.title('Digital filter frequency response')
-        plt.plot(w1, 20 * np.log10(np.abs(h1)), 'b')
-        plt.ylabel('Amplitude Response (dB)')
-        plt.xlabel('Frequency (rad/sample)')
-        plt.grid()
-        plt.show()
+        self.y_processed = signal.filtfilt(b, a, self.y_original)
+
+        # w1, h1 = signal.freqz(b, a)
+        # plt.title('Digital filter frequency response')
+        # plt.plot(w1, 20 * np.log10(np.abs(h1)), 'b')
+        # plt.ylabel('Amplitude Response (dB)')
+        # plt.xlabel('Frequency (rad/sample)')
+        # plt.grid()
+        # plt.show()
+
+        self.show_processed_data()
 
     def on_play(self):
         if len(self.y_processed) > 0:
@@ -320,19 +302,11 @@ class ContentView(QWidget):
         else:
             print("not data to save")
 
-    def show_info(self, sampling_rate, data):
-        print("sampling rate:", sampling_rate)
-        print("shape:", data.shape)
-        print("dtype:", data.dtype)
-        print("min, max:", data.min(), data.max())
-
-        self.sampling_rate = sampling_rate
-
+    def show_original_data(self):
         # Time domain
-        self.y_original = data[:, 0]
         y_data_scaled = np.interp(self.y_original, (self.y_original.min(), self.y_original.max()), (-10, +10))
 
-        sample_size = data.shape[0]
+        sample_size = len(self.y_original)
         self.x_data = np.linspace(0., 100., sample_size)
 
         points_1 = []
@@ -365,6 +339,41 @@ class ContentView(QWidget):
             points_2.append(QPointF(x_freq_data[k], y_freq_data[k]))
 
         self.m_series_2.replace(points_2)
+
+    def show_processed_data(self):
+        # Time domain
+        y_data_scaled = np.interp(self.y_processed, (self.y_processed.min(), self.y_processed.max()), (-10, +10))
+
+        points_3 = []
+
+        for k in range(len(y_data_scaled)):
+            points_3.append(QPointF(self.x_data[k], y_data_scaled[k]))
+
+        self.m_series_3.replace(points_3)
+
+        # Frequency domain
+        y_freq_data = np.abs(fftpack.fft(self.y_processed))
+        y_freq_data = np.interp(y_freq_data, (y_freq_data.min(), y_freq_data.max()), (0, +10))
+        x_freq_data = fftpack.fftfreq(len(self.y_processed)) * self.sampling_rate
+
+        axis_x = QValueAxis()
+        axis_x.setRange(0, self.sampling_rate / 2)
+        axis_x.setLabelFormat("%g")
+        axis_x.setTitleText("Frequency [Hz]")
+
+        axis_y = QValueAxis()
+        axis_y.setRange(np.min(y_freq_data), np.max(y_freq_data))
+        axis_y.setTitleText("Magnitude")
+
+        self.m_chart_4.setAxisX(axis_x, self.m_series_4)
+        self.m_chart_4.setAxisY(axis_y, self.m_series_4)
+
+        points_4 = []
+
+        for k in range(len(y_freq_data)):
+            points_4.append(QPointF(x_freq_data[k], y_freq_data[k]))
+
+        self.m_series_4.replace(points_4)
 
     def on_select_filter(self, filter_type, filter_type2, limit1, limit2):
         print(filter_type, filter_type2, limit1, limit2)
