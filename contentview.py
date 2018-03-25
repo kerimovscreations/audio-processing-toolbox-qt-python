@@ -1,13 +1,16 @@
-from PyQt5.QtGui import QIcon
-from PyQt5.QtChart import QChart, QChartView, QLineSeries, QValueAxis
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog, QComboBox
-from PyQt5.QtCore import Qt, QPointF
-from dragdroparea import DragDropArea
-import numpy as np
-from scipy.io import wavfile
-from scipy import fftpack
-import sounddevice as sd
 import os
+
+import numpy as np
+import sounddevice as sd
+from PyQt5.QtChart import QChart, QChartView, QLineSeries, QValueAxis
+from PyQt5.QtCore import Qt, QPointF
+from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog, QComboBox
+from scipy import fftpack
+from scipy.io import wavfile
+
+from dragdroparea import DragDropArea
+from filterselectiondialog import FilterSelectionDialog
 
 
 class ContentView(QWidget):
@@ -136,7 +139,7 @@ class ContentView(QWidget):
         # Action buttons
         player_layout = QHBoxLayout()
 
-        self.select_action_drop.addItems(["Add noise", "Filter noise"])
+        self.select_action_drop.addItems(["Add noise", "Filter"])
         self.select_action_drop.currentIndexChanged.connect(self.on_action_drop_select)
 
         player_layout.addWidget(self.select_action_drop)
@@ -149,7 +152,14 @@ class ContentView(QWidget):
         player_layout.addWidget(noise_btn)
 
         play_jc = QIcon('play_ic.png')
-        play_btn = QPushButton('Play')
+        play_orig_btn = QPushButton('Play Original')
+        play_orig_btn.setIcon(play_jc)
+        play_orig_btn.clicked.connect(self.on_play_orig)
+
+        player_layout.addWidget(play_orig_btn)
+
+        play_jc = QIcon('play_ic.png')
+        play_btn = QPushButton('Play Processed')
         play_btn.setIcon(play_jc)
         play_btn.clicked.connect(self.on_play)
 
@@ -190,7 +200,7 @@ class ContentView(QWidget):
     def on_action(self):
         if self.select_action_drop.currentText() == "Add noise":
             self.on_add_noise()
-        elif self.select_action_drop.currentText() == "Filter noise":
+        elif self.select_action_drop.currentText() == "Filter":
             self.on_filter()
 
     def on_add_noise(self):
@@ -235,14 +245,24 @@ class ContentView(QWidget):
         else:
             print("Not data to process")
 
-    def on_filer(self):
-        pass
+    def on_filter(self):
+        print("on_filter")
+
+        filer, filter2, limit1, limit2, ok = FilterSelectionDialog.show_dialog(parent=self)
 
     def on_play(self):
         if len(self.y_processed) > 0:
             print("on_play")
             data2 = np.asarray(self.y_processed, dtype=np.int16)
             sd.play(data2, self.sampling_rate)
+        else:
+            print("not data to play")
+
+    def on_play_orig(self):
+        if len(self.y_processed) > 0:
+            print("on_play")
+            data = np.asarray(self.y_original, dtype=np.int16)
+            sd.play(data, self.sampling_rate)
         else:
             print("not data to play")
 
@@ -303,3 +323,6 @@ class ContentView(QWidget):
             points_2.append(QPointF(x_freq_data[k], y_freq_data[k]))
 
         self.m_series_2.replace(points_2)
+
+    def on_select_filter(self, filter_type, filter_type2, limit1, limit2):
+        print(filter_type, filter_type2, limit1, limit2)
