@@ -115,7 +115,7 @@ class ContentView(QWidget):
 
         self.m_chart_3.setAxisX(axis_x, self.m_series_3)
         self.m_chart_3.setAxisY(axis_y, self.m_series_3)
-        self.m_chart_3.setTitle("Noisy signal time domain")
+        self.m_chart_3.setTitle("Processed signal time domain")
 
         chart_layout_2.addWidget(chart_view_3)
 
@@ -123,7 +123,7 @@ class ContentView(QWidget):
         chart_view_4 = QChartView(self.m_chart_4)
         chart_view_4.setMinimumSize(400, 300)
 
-        self.m_chart_4.setTitle("Noisy signal frequency domain")
+        self.m_chart_4.setTitle("Processed signal frequency domain")
 
         pen = self.m_series_4.pen()
         pen.setColor(Qt.magenta)
