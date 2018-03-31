@@ -10,12 +10,16 @@ class FilterSelectionDialog(QDialog):
 
         self.select_filter_type = QComboBox()
         self.select_filter_type2 = QComboBox()
+        self.select_filter_type3 = QComboBox()
 
         self.input_1 = QSlider(Qt.Horizontal)
         self.input_2 = QSlider(Qt.Horizontal)
 
         self.indicator_1 = QLabel()
         self.indicator_2 = QLabel()
+
+        self.arr_fir = ["triang", "blackman", "hamming", "hann", "bartlett"]
+        self.arr_iir = ["butter", "cheby1", "cheby2", "ellip", "bessel"]
 
         self.init_ui()
 
@@ -33,6 +37,11 @@ class FilterSelectionDialog(QDialog):
         self.select_filter_type2.currentIndexChanged.connect(self.on_filter_type_select2)
 
         type_selection_layout.addWidget(self.select_filter_type2)
+
+        self.select_filter_type3.addItems(self.arr_fir)
+        self.select_filter_type3.currentIndexChanged.connect(self.on_filter_type_select3)
+
+        type_selection_layout.addWidget(self.select_filter_type3)
 
         main_layout.addLayout(type_selection_layout)
 
@@ -69,7 +78,18 @@ class FilterSelectionDialog(QDialog):
         self.setWindowTitle("Filter parameters")
 
     def on_filter_type_select(self, i):
-        print("Current index", i, "selection changed ", self.select_filter_type.currentText())
+        # print("Current index", i, "selection changed ", self.select_filter_type.currentText())
+
+        if i == 0:
+            self.select_filter_type3.clear()
+            self.select_filter_type3.addItems(self.arr_fir)
+        elif i == 1:
+            self.select_filter_type3.clear()
+            self.select_filter_type3.addItems(self.arr_iir)
+
+    def on_filter_type_select3(self, i):
+        # print("Current index", i, "selection changed ", self.select_filter_type3.currentText())
+        pass
 
     def on_filter_type_select2(self, i):
         self.input_2.setEnabled(i > 1)
@@ -92,4 +112,5 @@ class FilterSelectionDialog(QDialog):
         dialog = FilterSelectionDialog(parent)
         result = dialog.exec_()
         return (dialog.select_filter_type.currentText(), dialog.select_filter_type2.currentText(),
-                dialog.input_1.value() / 100, dialog.input_2.value() / 100, result == QDialog.Accepted)
+                dialog.input_1.value() / 100, dialog.input_2.value() / 100, dialog.select_filter_type3.currentText(),
+                result == QDialog.Accepted)

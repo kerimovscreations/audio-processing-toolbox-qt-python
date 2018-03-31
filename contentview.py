@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 
 from dragdroparea import DragDropArea
 from filterselectiondialog import FilterSelectionDialog
+from muteinstrumentdialog import MuteInstrumentsDialog
 
 
 class ContentView(QWidget):
@@ -141,7 +142,7 @@ class ContentView(QWidget):
         # Action buttons
         player_layout = QHBoxLayout()
 
-        self.select_action_drop.addItems(["Add noise", "Filter"])
+        self.select_action_drop.addItems(["Add noise", "Filter", "Mute equipment", "Mute voice"])
         self.select_action_drop.currentIndexChanged.connect(self.on_action_drop_select)
 
         player_layout.addWidget(self.select_action_drop)
@@ -204,6 +205,10 @@ class ContentView(QWidget):
             self.on_add_noise()
         elif self.select_action_drop.currentText() == "Filter":
             self.on_filter()
+        elif self.select_action_drop.currentText() == "Mute equipment":
+            self.on_mute_equipment()
+        elif self.select_action_drop.currentText() == "Mute voice":
+            self.on_mute_voice()
 
     def on_add_noise(self):
         if len(self.y_original) > 0:
@@ -217,28 +222,53 @@ class ContentView(QWidget):
     def on_filter(self):
         print("on_filter")
 
-        filter1, filter2, limit1, limit2, ok = FilterSelectionDialog.show_dialog(parent=self)
-        print(filter1, filter2, limit1, limit2, ok)
+        filter1, filter2, limit1, limit2, extra, ok = FilterSelectionDialog.show_dialog(parent=self)
+        print(filter1, filter2, limit1, limit2, extra, ok)
 
         if ok:
             if filter1 == "FIR filter":
-                self.on_fir_filter(filter2, limit1, limit2)
+                self.on_fir_filter(filter2, limit1, limit2, extra)
             elif filter1 == "IIR filter":
-                self.on_iir_filter(filter2, limit1, limit2)
+                self.on_iir_filter(filter2, limit1, limit2, extra)
 
-    def on_fir_filter(self, filter_type, limit1, limit2):
+    def on_mute_equipment(self):
+        print("on_mute_equipment")
+
+        check_piano, check_organ, check_flute, check_french_horn, check_trumpet, check_violin, check_guitar_acoustic, check_guitar_bass, check_clarinet, check_saxophone, ok = MuteInstrumentsDialog.show_dialog(
+            parent=self)
+        print(check_piano, check_organ, check_flute, check_french_horn, check_trumpet, check_violin, check_guitar_acoustic, check_guitar_bass, check_clarinet, check_saxophone, ok)
+
+        '''
+        Piano	A0 (28 Hz) to C8 (4,186 Hz or 4.1 KHz)
+        Organ	C0 (16 Hz) to A9 (7,040 KHz)	
+        Concert Flute	C4 (262 Hz) to B6 (1,976 Hz)	
+        French Horn	A2 (110 Hz) to A5 (880 Hz)
+        Trumpet	E3 (165 Hz) to B5 (988 Hz)
+        Violin	G3 (196 Hz) - G7 (3,136 Hz) (G-D-E-A) (or C8 (4,186 Hz?)
+        Guitar (Acoustic)	E2 (82 Hz) to F6 (1,397 Hz)
+        Guitar (Bass)	4 string E1 (41 Hz) to C4 (262 Hz)
+        Clarinet	E3 (165 Hz) to G6 (1,568 Hz)	
+        Saxaphone Eb 138-830 (880)
+        '''
+        if ok:
+            print(check_piano)
+
+    def on_mute_voice(self):
+        pass
+
+    def on_fir_filter(self, filter_type, limit1, limit2, extra):
         if filter_type == "Low-pass":
-            design_filter = signal.firwin(41, limit1)
+            design_filter = signal.firwin(41, limit1, window=extra)
         elif filter_type == "High-pass":
             temp = np.zeros(41)
             temp[20] = 1
-            design_filter = temp - np.array(signal.firwin(41, limit1))
+            design_filter = temp - np.array(signal.firwin(41, limit1, window=extra))
         elif filter_type == "Band-pass":
             temp = np.zeros(41)
             temp[20] = 1
-            design_filter = temp - np.array(signal.firwin(41, [limit1, limit2]))
+            design_filter = temp - np.array(signal.firwin(41, [limit1, limit2], window=extra))
         elif filter_type == "Band-reject":
-            design_filter = signal.firwin(41, [limit1, limit2])
+            design_filter = signal.firwin(41, [limit1, limit2], window=extra)
 
         self.y_processed = signal.convolve(self.y_original, design_filter, mode='same')
 
@@ -252,15 +282,15 @@ class ContentView(QWidget):
 
         self.show_processed_data()
 
-    def on_iir_filter(self, filter_type, limit1, limit2):
+    def on_iir_filter(self, filter_type, limit1, limit2, extra):
         if filter_type == "Low-pass":
-            b, a = signal.iirfilter(4, limit1, rp=5, rs=60, btype='lowpass', ftype='ellip')
+            b, a = signal.iirfilter(4, limit1, rp=5, rs=60, btype='lowpass', ftype=extra)
         elif filter_type == "High-pass":
-            b, a = signal.iirfilter(4, limit1, rp=5, rs=60, btype='highpass', ftype='ellip')
+            b, a = signal.iirfilter(4, limit1, rp=5, rs=60, btype='highpass', ftype=extra)
         elif filter_type == "Band-pass":
-            b, a = signal.iirfilter(4, [limit1, limit2], rp=5, rs=60, btype='bandpass', ftype='ellip')
+            b, a = signal.iirfilter(4, [limit1, limit2], rp=5, rs=60, btype='bandpass', ftype=extra)
         elif filter_type == "Band-reject":
-            b, a = signal.iirfilter(4, [limit1, limit2], rp=5, rs=60, btype='bandstop', ftype='ellip')
+            b, a = signal.iirfilter(4, [limit1, limit2], rp=5, rs=60, btype='bandstop', ftype=extra)
 
         self.y_processed = signal.filtfilt(b, a, self.y_original)
 
@@ -339,6 +369,9 @@ class ContentView(QWidget):
             points_2.append(QPointF(x_freq_data[k], y_freq_data[k]))
 
         self.m_series_2.replace(points_2)
+
+        self.m_series_3.clear()
+        self.m_series_4.clear()
 
     def show_processed_data(self):
         # Time domain
