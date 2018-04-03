@@ -168,6 +168,13 @@ class ContentView(QWidget):
 
         player_layout.addWidget(play_btn)
 
+        stop_jc = QIcon('stop_ic.png')
+        stop_btn = QPushButton('Stop')
+        stop_btn.setIcon(stop_jc)
+        stop_btn.clicked.connect(self.on_stop)
+
+        player_layout.addWidget(stop_btn)
+
         main_layout.addLayout(player_layout)
 
         self.setLayout(main_layout)
@@ -236,7 +243,8 @@ class ContentView(QWidget):
 
         check_piano, check_organ, check_flute, check_french_horn, check_trumpet, check_violin, check_guitar_acoustic, check_guitar_bass, check_clarinet, check_saxophone, ok = MuteInstrumentsDialog.show_dialog(
             parent=self)
-        print(check_piano, check_organ, check_flute, check_french_horn, check_trumpet, check_violin, check_guitar_acoustic, check_guitar_bass, check_clarinet, check_saxophone, ok)
+        print(check_piano, check_organ, check_flute, check_french_horn, check_trumpet, check_violin,
+              check_guitar_acoustic, check_guitar_bass, check_clarinet, check_saxophone, ok)
 
         '''
         Piano	A0 (28 Hz) to C8 (4,186 Hz or 4.1 KHz)
@@ -252,6 +260,60 @@ class ContentView(QWidget):
         '''
         if ok:
             print(check_piano)
+
+        limit1 = 0.1
+        limit2 = 0.2
+        if check_piano:
+            pass
+        elif check_organ:
+            pass
+        elif check_flute:
+            limit1 = 262 / self.sampling_rate
+            limit2 = 1976 / self.sampling_rate
+            pass
+        elif check_french_horn:
+            limit1 = 110 / self.sampling_rate
+            limit2 = 880 / self.sampling_rate
+            pass
+        elif check_trumpet:
+            limit1 = 165 / self.sampling_rate
+            limit2 = 988 / self.sampling_rate
+            pass
+        elif check_violin:
+            limit1 = 196 / self.sampling_rate
+            limit2 = 3136 / self.sampling_rate
+            pass
+        elif check_guitar_acoustic:
+            limit1 = 82 / self.sampling_rate
+            limit2 = 1397 / self.sampling_rate
+            pass
+        elif check_guitar_bass:
+            limit1 = 41 / self.sampling_rate
+            limit2 = 262 / self.sampling_rate
+            pass
+        elif check_clarinet:
+            limit1 = 165 / self.sampling_rate
+            limit2 = 1568 / self.sampling_rate
+            pass
+        elif check_saxophone:
+            limit1 = 138 / self.sampling_rate
+            limit2 = 880 / self.sampling_rate
+            pass
+
+        print(limit1, limit2)
+
+        design_filter = signal.firwin(41, [limit1, limit2], window='hamming')
+        self.y_processed = signal.convolve(self.y_original, design_filter, mode='same')
+
+        w1, h1 = signal.freqz(design_filter)
+        plt.title('Digital filter frequency response')
+        plt.plot(w1, 20 * np.log10(np.abs(h1)), 'b')
+        plt.ylabel('Amplitude Response (dB)')
+        plt.xlabel('Frequency (rad/sample)')
+        plt.grid()
+        plt.show()
+
+        self.show_processed_data()
 
     def on_mute_voice(self):
         pass
@@ -272,13 +334,13 @@ class ContentView(QWidget):
 
         self.y_processed = signal.convolve(self.y_original, design_filter, mode='same')
 
-        # w1, h1 = signal.freqz(design_filter)
-        # plt.title('Digital filter frequency response')
-        # plt.plot(w1, 20 * np.log10(np.abs(h1)), 'b')
-        # plt.ylabel('Amplitude Response (dB)')
-        # plt.xlabel('Frequency (rad/sample)')
-        # plt.grid()
-        # plt.show()
+        w1, h1 = signal.freqz(design_filter)
+        plt.title('Digital filter frequency response')
+        plt.plot(w1, 20 * np.log10(np.abs(h1)), 'b')
+        plt.ylabel('Amplitude Response (dB)')
+        plt.xlabel('Frequency (rad/sample)')
+        plt.grid()
+        plt.show()
 
         self.show_processed_data()
 
@@ -294,13 +356,13 @@ class ContentView(QWidget):
 
         self.y_processed = signal.filtfilt(b, a, self.y_original)
 
-        # w1, h1 = signal.freqz(b, a)
-        # plt.title('Digital filter frequency response')
-        # plt.plot(w1, 20 * np.log10(np.abs(h1)), 'b')
-        # plt.ylabel('Amplitude Response (dB)')
-        # plt.xlabel('Frequency (rad/sample)')
-        # plt.grid()
-        # plt.show()
+        w1, h1 = signal.freqz(b, a)
+        plt.title('Digital filter frequency response')
+        plt.plot(w1, 20 * np.log10(np.abs(h1)), 'b')
+        plt.ylabel('Amplitude Response (dB)')
+        plt.xlabel('Frequency (rad/sample)')
+        plt.grid()
+        plt.show()
 
         self.show_processed_data()
 
@@ -312,8 +374,11 @@ class ContentView(QWidget):
         else:
             print("not data to play")
 
+    def on_stop(self):
+        sd.stop()
+
     def on_play_orig(self):
-        if len(self.y_processed) > 0:
+        if len(self.y_original) > 0:
             print("on_play")
             data = np.asarray(self.y_original, dtype=np.int16)
             sd.play(data, self.sampling_rate)

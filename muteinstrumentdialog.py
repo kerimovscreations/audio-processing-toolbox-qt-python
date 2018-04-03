@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QVBoxLayout, QDialogButtonBox, QDialog, QCheckBox
+from PyQt5.QtWidgets import QVBoxLayout, QDialogButtonBox, QDialog, QRadioButton
 
 
 class MuteInstrumentsDialog(QDialog):
@@ -8,16 +8,16 @@ class MuteInstrumentsDialog(QDialog):
 
         self.parent = parent
 
-        self.check_piano = QCheckBox("Piano")
-        self.check_organ = QCheckBox("Organ")
-        self.check_flute = QCheckBox("Flute")
-        self.check_french_horn = QCheckBox("French horn")
-        self.check_trumpet = QCheckBox("Trumpet")
-        self.check_violin = QCheckBox("Violin")
-        self.check_guitar_acoustic = QCheckBox("Guitar acoustic")
-        self.check_guitar_bass = QCheckBox("Guitar bass")
-        self.check_clarinet = QCheckBox("Clarinet")
-        self.check_saxophone = QCheckBox("Saxophone")
+        self.check_piano = QRadioButton("Piano")
+        self.check_organ = QRadioButton("Organ")
+        self.check_flute = QRadioButton("Flute")
+        self.check_french_horn = QRadioButton("French horn")
+        self.check_trumpet = QRadioButton("Trumpet")
+        self.check_violin = QRadioButton("Violin")
+        self.check_guitar_acoustic = QRadioButton("Guitar acoustic")
+        self.check_guitar_bass = QRadioButton("Guitar bass")
+        self.check_clarinet = QRadioButton("Clarinet")
+        self.check_saxophone = QRadioButton("Saxophone")
 
         self.init_ui()
 
