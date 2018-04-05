@@ -35,9 +35,10 @@ class FilterResponseDialog(QDialog):
     def show_figure(self, w1, h1):
         self.figure.clear()
 
-        ax = self.figure.add_subplot(111)
+        ax = self.figure.add_subplot(121)
         ax.plot(w1, 20 * np.log10(np.abs(h1)), 'b')
-
+        ax1 = self.figure.add_subplot(122)
+        ax1.plot(w1, np.abs(h1))
         self.canvas.draw()
 
     @staticmethod

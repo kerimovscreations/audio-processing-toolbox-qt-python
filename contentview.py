@@ -315,7 +315,12 @@ class ContentView(QWidget):
 
         print(limit1, limit2)
 
-        design_filter = signal.firwin(41, [limit1, limit2], window='hamming')
+        print([0.0, 0.0001, limit1 - 0.0001, limit1, limit2, limit2 + 0.0001, 0.9991, 1.0],
+                                       [0, 1, 1, 0, 0, 1, 1, 0])
+        design_filter = signal.firwin2(1000000,
+                                       [0.0, 0.0001, limit1 - 0.0001, limit1, limit2, limit2 + 0.0001, 0.9991, 1.0],
+                                       [0, 1, 1, 0, 0, 1, 1, 0])
+
         self.y_processed = signal.convolve(self.y_original, design_filter, mode='same')
 
         w1, h1 = signal.freqz(design_filter)
@@ -326,7 +331,23 @@ class ContentView(QWidget):
             self.show_processed_data()
 
     def on_mute_voice(self):
-        pass
+        limit1 = 85 / self.sampling_rate
+        limit2 = 180 / self.sampling_rate
+
+        print([0.0, 0.000010, limit1 - 0.0001, limit1, limit2, limit2 + 0.0001, 0.000090, 1.0],
+              [0, 1, 1, 0, 0, 1, 1, 0])
+        design_filter = signal.firwin2(1000000,
+                                       [0.0, 0.0001, limit1 - 0.0001, limit1, limit2, limit2 + 0.0001, 0.9991, 1.0],
+                                       [0, 1, 1, 0, 0, 1, 1, 0])
+
+        self.y_processed = signal.convolve(self.y_original, design_filter, mode='same')
+
+        w1, h1 = signal.freqz(design_filter)
+
+        result = FilterResponseDialog.show_dialog(parent=self, w1=w1, h1=h1)
+
+        if result:
+            self.show_processed_data()
 
     def on_fir_filter(self, filter_type, limit1, limit2, extra):
         if filter_type == "Low-pass":
