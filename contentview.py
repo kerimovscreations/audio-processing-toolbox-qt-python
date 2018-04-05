@@ -5,15 +5,17 @@ import sounddevice as sd
 from PyQt5.QtChart import QChart, QChartView, QLineSeries, QValueAxis
 from PyQt5.QtCore import Qt, QPointF
 from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog, QComboBox
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFileDialog, QComboBox, QErrorMessage, \
+    QMessageBox
+
 from scipy import fftpack
 from scipy.io import wavfile
 import scipy.signal as signal
-import matplotlib.pyplot as plt
 
 from dragdroparea import DragDropArea
 from filterselectiondialog import FilterSelectionDialog
 from muteinstrumentdialog import MuteInstrumentsDialog
+from filterresponsedialog import FilterResponseDialog
 
 
 class ContentView(QWidget):
@@ -201,11 +203,12 @@ class ContentView(QWidget):
         self.show_original_data()
 
     def on_action_drop_select(self, i):
-        print("Items in the list are :")
-
-        for count in range(self.select_action_drop.count()):
-            print(self.select_action_drop.itemText(count))
-        print("Current index", i, "selection changed ", self.select_action_drop.currentText())
+        # print("Items in the list are :")
+        #
+        # for count in range(self.select_action_drop.count()):
+        #     print(self.select_action_drop.itemText(count))
+        # print("Current index", i, "selection changed ", self.select_action_drop.currentText())
+        pass
 
     def on_action(self):
         if self.select_action_drop.currentText() == "Add noise":
@@ -229,14 +232,24 @@ class ContentView(QWidget):
     def on_filter(self):
         print("on_filter")
 
-        filter1, filter2, limit1, limit2, extra, ok = FilterSelectionDialog.show_dialog(parent=self)
-        print(filter1, filter2, limit1, limit2, extra, ok)
+        if len(self.y_original) == 0:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("Upload sound file")
+            msg.setInformativeText("First you should add sound file to process")
+            msg.setWindowTitle("Error")
+            msg.exec_()
+            return
+
+        filter1, filter2, limit1, limit2, extra, max_ripple, min_attenuation, ok = FilterSelectionDialog.show_dialog(
+            parent=self)
+        print(filter1, filter2, limit1, limit2, extra, max_ripple, min_attenuation, ok)
 
         if ok:
             if filter1 == "FIR filter":
                 self.on_fir_filter(filter2, limit1, limit2, extra)
             elif filter1 == "IIR filter":
-                self.on_iir_filter(filter2, limit1, limit2, extra)
+                self.on_iir_filter(filter2, limit1, limit2, extra, max_ripple, min_attenuation)
 
     def on_mute_equipment(self):
         print("on_mute_equipment")
@@ -306,14 +319,11 @@ class ContentView(QWidget):
         self.y_processed = signal.convolve(self.y_original, design_filter, mode='same')
 
         w1, h1 = signal.freqz(design_filter)
-        plt.title('Digital filter frequency response')
-        plt.plot(w1, 20 * np.log10(np.abs(h1)), 'b')
-        plt.ylabel('Amplitude Response (dB)')
-        plt.xlabel('Frequency (rad/sample)')
-        plt.grid()
-        plt.show()
 
-        self.show_processed_data()
+        result = FilterResponseDialog.show_dialog(parent=self, w1=w1, h1=h1)
+
+        if result:
+            self.show_processed_data()
 
     def on_mute_voice(self):
         pass
@@ -335,67 +345,87 @@ class ContentView(QWidget):
         self.y_processed = signal.convolve(self.y_original, design_filter, mode='same')
 
         w1, h1 = signal.freqz(design_filter)
-        plt.title('Digital filter frequency response')
-        plt.plot(w1, 20 * np.log10(np.abs(h1)), 'b')
-        plt.ylabel('Amplitude Response (dB)')
-        plt.xlabel('Frequency (rad/sample)')
-        plt.grid()
-        plt.show()
 
-        self.show_processed_data()
+        result = FilterResponseDialog.show_dialog(parent=self, w1=w1, h1=h1)
 
-    def on_iir_filter(self, filter_type, limit1, limit2, extra):
+        if result:
+            self.show_processed_data()
+
+    def on_iir_filter(self, filter_type, limit1, limit2, extra, max_ripple, min_attenuation):
         if filter_type == "Low-pass":
-            b, a = signal.iirfilter(4, limit1, rp=5, rs=60, btype='lowpass', ftype=extra)
+            b, a = signal.iirfilter(4, limit1, rp=int(max_ripple), rs=int(min_attenuation), btype='lowpass',
+                                    ftype=extra)
         elif filter_type == "High-pass":
-            b, a = signal.iirfilter(4, limit1, rp=5, rs=60, btype='highpass', ftype=extra)
+            b, a = signal.iirfilter(4, limit1, rp=int(max_ripple), rs=int(min_attenuation), btype='highpass',
+                                    ftype=extra)
         elif filter_type == "Band-pass":
-            b, a = signal.iirfilter(4, [limit1, limit2], rp=5, rs=60, btype='bandpass', ftype=extra)
+            b, a = signal.iirfilter(4, [limit1, limit2], rp=int(max_ripple), rs=int(min_attenuation), btype='bandpass',
+                                    ftype=extra)
         elif filter_type == "Band-reject":
-            b, a = signal.iirfilter(4, [limit1, limit2], rp=5, rs=60, btype='bandstop', ftype=extra)
+            b, a = signal.iirfilter(4, [limit1, limit2], rp=int(max_ripple), rs=int(min_attenuation), btype='bandstop',
+                                    ftype=extra)
 
         self.y_processed = signal.filtfilt(b, a, self.y_original)
 
         w1, h1 = signal.freqz(b, a)
-        plt.title('Digital filter frequency response')
-        plt.plot(w1, 20 * np.log10(np.abs(h1)), 'b')
-        plt.ylabel('Amplitude Response (dB)')
-        plt.xlabel('Frequency (rad/sample)')
-        plt.grid()
-        plt.show()
 
-        self.show_processed_data()
+        result = FilterResponseDialog.show_dialog(parent=self, w1=w1, h1=h1)
+
+        if result:
+            self.show_processed_data()
 
     def on_play(self):
+        print("on_play")
+
         if len(self.y_processed) > 0:
-            print("on_play")
             data2 = np.asarray(self.y_processed, dtype=np.int16)
             sd.play(data2, self.sampling_rate)
         else:
-            print("not data to play")
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("Upload sound file")
+            msg.setInformativeText("First you should upload and process sound file to play")
+            msg.setWindowTitle("Error")
+            msg.exec_()
 
     def on_stop(self):
         sd.stop()
 
     def on_play_orig(self):
+        print("on_play_orig")
+
         if len(self.y_original) > 0:
-            print("on_play")
             data = np.asarray(self.y_original, dtype=np.int16)
             sd.play(data, self.sampling_rate)
         else:
-            print("not data to play")
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("Upload sound file")
+            msg.setInformativeText("First you should add sound file to play")
+            msg.setWindowTitle("Error")
+            msg.exec_()
 
     def on_save(self):
+        print("on_save")
         if len(self.y_processed) > 0:
-            print("on_save")
             path = QFileDialog.getSaveFileName(self, 'Save File', os.getenv('HOME'), 'audio/wav')
             if path[0] != '':
                 data2 = np.asarray([self.y_processed, self.y_processed], dtype=np.int16).transpose()
                 wavfile.write(path[0], self.sampling_rate, data2)
             else:
-                print("not path found")
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Critical)
+                msg.setText("No path")
+                msg.setInformativeText("You should define path to save file")
+                msg.setWindowTitle("Error")
+                msg.exec_()
         else:
-            print("not data to save")
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("No data")
+            msg.setInformativeText("No data to save, you should upload and process sound file")
+            msg.setWindowTitle("Error")
+            msg.exec_()
 
     def show_original_data(self):
         # Time domain
