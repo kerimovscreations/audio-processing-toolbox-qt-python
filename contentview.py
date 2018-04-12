@@ -144,8 +144,8 @@ class ContentView(QWidget):
         # Action buttons
         player_layout = QHBoxLayout()
 
-        self.select_action_drop.addItems(["Add noise", "Filter", "Mute equipment", "Mute voice"])
-        self.select_action_drop.currentIndexChanged.connect(self.on_action_drop_select)
+        self.select_action_drop.addItems(["Add noise", "Filter", "Mute equipment",
+                                          "Mute voice", "Add echo", "Filter echo"])
 
         player_layout.addWidget(self.select_action_drop)
 
@@ -181,6 +181,10 @@ class ContentView(QWidget):
 
         self.setLayout(main_layout)
 
+    ''''
+        Toolbar actions
+    '''
+
     def browse_file(self):
         path1 = QFileDialog.getOpenFileName(self, 'Open File', os.getenv('HOME'), '*.wav')
         print(path1[0])
@@ -202,13 +206,31 @@ class ContentView(QWidget):
 
         self.show_original_data()
 
-    def on_action_drop_select(self, i):
-        # print("Items in the list are :")
-        #
-        # for count in range(self.select_action_drop.count()):
-        #     print(self.select_action_drop.itemText(count))
-        # print("Current index", i, "selection changed ", self.select_action_drop.currentText())
-        pass
+    def on_save(self):
+        print("on_save")
+        if len(self.y_processed) > 0:
+            path = QFileDialog.getSaveFileName(self, 'Save File', os.getenv('HOME'), 'audio/wav')
+            if path[0] != '':
+                data2 = np.asarray([self.y_processed, self.y_processed], dtype=np.int16).transpose()
+                wavfile.write(path[0], self.sampling_rate, data2)
+            else:
+                msg = QMessageBox()
+                msg.setIcon(QMessageBox.Critical)
+                msg.setText("No path")
+                msg.setInformativeText("You should define path to save file")
+                msg.setWindowTitle("Error")
+                msg.exec_()
+        else:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("No data")
+            msg.setInformativeText("No data to save, you should upload and process sound file")
+            msg.setWindowTitle("Error")
+            msg.exec_()
+
+    ''''
+        Action selection
+    '''
 
     def on_action(self):
         if self.select_action_drop.currentText() == "Add noise":
@@ -219,15 +241,28 @@ class ContentView(QWidget):
             self.on_mute_equipment()
         elif self.select_action_drop.currentText() == "Mute voice":
             self.on_mute_voice()
+        elif self.select_action_drop.currentText() == "Add echo":
+            self.on_add_echo()
+        elif self.select_action_drop.currentText() == "Filter echo":
+            self.on_filter_echo()
 
+    '''
+        Action selection
+    '''
     def on_add_noise(self):
-        if len(self.y_original) > 0:
-            noise = np.random.normal(0, self.y_original.max() / 30, len(self.y_original))
-            arr1 = np.array(self.y_original)
-            self.y_processed = arr1 + noise
-            self.show_processed_data()
-        else:
-            print("Not data to process")
+        if len(self.y_original) == 0:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("Upload sound file")
+            msg.setInformativeText("First you should add sound file to process")
+            msg.setWindowTitle("Error")
+            msg.exec_()
+            return
+
+        noise = np.random.normal(0, self.y_original.max() / 30, len(self.y_original))
+        arr1 = np.array(self.y_original)
+        self.y_processed = arr1 + noise
+        self.show_processed_data()
 
     def on_filter(self):
         print("on_filter")
@@ -254,8 +289,10 @@ class ContentView(QWidget):
     def on_mute_equipment(self):
         print("on_mute_equipment")
 
-        check_piano, check_organ, check_flute, check_french_horn, check_trumpet, check_violin, check_guitar_acoustic, check_guitar_bass, check_clarinet, check_saxophone, ok = MuteInstrumentsDialog.show_dialog(
-            parent=self)
+        check_piano, check_organ, check_flute, check_french_horn, check_trumpet, check_violin, \
+        check_guitar_acoustic, check_guitar_bass, check_clarinet, \
+        check_saxophone, ok = MuteInstrumentsDialog.show_dialog(parent=self)
+
         print(check_piano, check_organ, check_flute, check_french_horn, check_trumpet, check_violin,
               check_guitar_acoustic, check_guitar_bass, check_clarinet, check_saxophone, ok)
 
@@ -316,7 +353,7 @@ class ContentView(QWidget):
         print(limit1, limit2)
 
         print([0.0, 0.0001, limit1 - 0.0001, limit1, limit2, limit2 + 0.0001, 0.9991, 1.0],
-                                       [0, 1, 1, 0, 0, 1, 1, 0])
+              [0, 1, 1, 0, 0, 1, 1, 0])
         design_filter = signal.firwin2(1000000,
                                        [0.0, 0.0001, limit1 - 0.0001, limit1, limit2, limit2 + 0.0001, 0.9991, 1.0],
                                        [0, 1, 1, 0, 0, 1, 1, 0])
@@ -348,6 +385,32 @@ class ContentView(QWidget):
 
         if result:
             self.show_processed_data()
+
+    def on_add_echo(self):
+        if len(self.y_original) == 0:
+            msg = QMessageBox()
+            msg.setIcon(QMessageBox.Critical)
+            msg.setText("Upload sound file")
+            msg.setInformativeText("First you should add sound file to process")
+            msg.setWindowTitle("Error")
+            msg.exec_()
+            return
+
+        original = np.array(self.y_original)
+        num_shift = int(len(self.y_original) * 0.06)
+        zeros = np.zeros(num_shift)
+        echo = np.append(zeros, self.y_original)
+        echo = np.delete(echo, np.arange(len(echo) - num_shift - 1, len(echo) - 1))
+
+        self.y_processed = original + echo
+        self.show_processed_data()
+
+    def on_filter_echo(self):
+        pass
+
+    '''
+        Filters
+    '''
 
     def on_fir_filter(self, filter_type, limit1, limit2, extra):
         if filter_type == "Low-pass":
@@ -395,6 +458,10 @@ class ContentView(QWidget):
         if result:
             self.show_processed_data()
 
+    '''
+        Audio controls
+    '''
+
     def on_play(self):
         print("on_play")
 
@@ -426,27 +493,9 @@ class ContentView(QWidget):
             msg.setWindowTitle("Error")
             msg.exec_()
 
-    def on_save(self):
-        print("on_save")
-        if len(self.y_processed) > 0:
-            path = QFileDialog.getSaveFileName(self, 'Save File', os.getenv('HOME'), 'audio/wav')
-            if path[0] != '':
-                data2 = np.asarray([self.y_processed, self.y_processed], dtype=np.int16).transpose()
-                wavfile.write(path[0], self.sampling_rate, data2)
-            else:
-                msg = QMessageBox()
-                msg.setIcon(QMessageBox.Critical)
-                msg.setText("No path")
-                msg.setInformativeText("You should define path to save file")
-                msg.setWindowTitle("Error")
-                msg.exec_()
-        else:
-            msg = QMessageBox()
-            msg.setIcon(QMessageBox.Critical)
-            msg.setText("No data")
-            msg.setInformativeText("No data to save, you should upload and process sound file")
-            msg.setWindowTitle("Error")
-            msg.exec_()
+    '''
+        Signal plots
+    '''
 
     def show_original_data(self):
         # Time domain
@@ -523,6 +572,3 @@ class ContentView(QWidget):
             points_4.append(QPointF(x_freq_data[k], y_freq_data[k]))
 
         self.m_series_4.replace(points_4)
-
-    def on_select_filter(self, filter_type, filter_type2, limit1, limit2):
-        print(filter_type, filter_type2, limit1, limit2)

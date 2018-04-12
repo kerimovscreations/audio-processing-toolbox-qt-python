@@ -16,9 +16,6 @@ class MainApp(QMainWindow):
         self.init_ui()
 
     def init_ui(self):
-        new_btn = QAction(QIcon("new_ic.png"), "New", self)
-        self.toolbar.addAction(new_btn)
-
         open_btn = QAction(QIcon("open_ic.png"), "Open", self)
         self.toolbar.addAction(open_btn)
 
@@ -33,10 +30,7 @@ class MainApp(QMainWindow):
         self.show()
 
     def toolbar_btn_click(self, a):
-        if a.text() == "New":
-            # self.setCentralWidget(AudioRecPlot())
-            self.contentView.reset_data()
-        elif a.text() == "Open":
+        if a.text() == "Open":
             self.contentView.browse_file()
         elif a.text() == "Save":
             self.contentView.on_save()
