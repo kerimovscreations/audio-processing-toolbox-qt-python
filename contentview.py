@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFil
 from scipy import fftpack
 from scipy.io import wavfile
 import scipy.signal as signal
+from scipy.signal import lfilter
 import cepstrum
 import matplotlib.pyplot as plt
 
@@ -41,6 +42,9 @@ class ContentView(QWidget):
         self.sampling_rate = 0
 
         self.select_action_drop = QComboBox()
+
+        self.echo_shift = 0.4
+        self.echo_alpha = 0.5
 
         self.init_ui()
 
@@ -400,38 +404,46 @@ class ContentView(QWidget):
             msg.exec_()
             return
 
-        original = np.array(self.y_original)
-        num_shift = int(len(self.y_original) * 0.06)
+        num_shift = int(self.sampling_rate * self.echo_shift)
         zeros = np.zeros(num_shift)
-        echo = np.append(zeros, self.y_original)
-        echo = np.delete(echo, np.arange(len(echo) - num_shift - 1, len(echo) - 1))
+
+        original = np.append(self.y_original, zeros)
+        echo = np.append(zeros, self.y_original) * self.echo_alpha
 
         self.y_processed = original + echo
+
+        np.delete(self.y_processed, np.arange(len(self.y_processed) - len(zeros), len(self.y_processed)))
+
         self.show_processed_data()
 
     def on_filter_echo(self):
         ceps = cepstrum.real_cepstrum(np.array(self.y_original))
 
-        # y_data_scaled = np.interp(ceps, (ceps.min(), ceps.max()), (-10, +10))
-        #
-        # sample_size = len(ceps)
-        # x_data = np.linspace(0., 100., sample_size)
-        #
-        # points_1 = []
-        #
-        # for k in range(len(y_data_scaled)):
-        #     points_1.append(QPointF(x_data[k], y_data_scaled[k]))
-
-        index, result = CepstrumDialog.show_dialog(self, ceps[0:int(len(ceps)/2)])
+        index, result = CepstrumDialog.show_dialog(self, ceps)
 
         if result:
             print(index)
-            # self.show_processed_data()
+
+            b = np.array([1])
+
+            a = np.zeros(index + 1)
+            a[0] = 1
+            a[len(a) - 1] = self.echo_alpha
+
+            zi = signal.lfilter_zi(b, a)
+
+            self.y_processed, _ = signal.lfilter(b, a, self.y_original, axis=0, zi=zi*self.y_original[0])
+
+            w1, h1 = signal.freqz(b, a)
+
+            result = FilterResponseDialog.show_dialog(parent=self, w1=w1, h1=h1)
+
+            if result:
+                self.show_processed_data()
 
     '''
         Filters
     '''
-
     def on_fir_filter(self, filter_type, limit1, limit2, extra):
         if filter_type == "Low-pass":
             design_filter = signal.firwin(41, limit1, window=extra)
@@ -469,7 +481,7 @@ class ContentView(QWidget):
             b, a = signal.iirfilter(4, [limit1, limit2], rp=int(max_ripple), rs=int(min_attenuation), btype='bandstop',
                                     ftype=extra)
 
-        self.y_processed = signal.filtfilt(b, a, self.y_original)
+        self.y_processed = signal.lfilter(b, a, self.y_original)
 
         w1, h1 = signal.freqz(b, a)
 
@@ -564,8 +576,11 @@ class ContentView(QWidget):
 
         points_3 = []
 
+        sample_size = len(self.y_processed)
+        x_data = np.linspace(0., 100., sample_size)
+
         for k in range(len(y_data_scaled)):
-            points_3.append(QPointF(self.x_data[k], y_data_scaled[k]))
+            points_3.append(QPointF(x_data[k], y_data_scaled[k]))
 
         self.m_series_3.replace(points_3)
 

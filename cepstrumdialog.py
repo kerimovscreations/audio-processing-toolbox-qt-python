@@ -53,7 +53,7 @@ class CepstrumDialog(QDialog):
 
         x = np.array(np.arange(0, len(y)))
 
-        thresh_hold = 0.2
+        thresh_hold = 0.1
         temp_check = 10
 
         for x1 in range(0, len(y)):
