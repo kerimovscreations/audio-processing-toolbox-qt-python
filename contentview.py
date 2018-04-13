@@ -11,11 +11,14 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QFil
 from scipy import fftpack
 from scipy.io import wavfile
 import scipy.signal as signal
+import cepstrum
+import matplotlib.pyplot as plt
 
 from dragdroparea import DragDropArea
 from filterselectiondialog import FilterSelectionDialog
 from muteinstrumentdialog import MuteInstrumentsDialog
 from filterresponsedialog import FilterResponseDialog
+from cepstrumdialog import CepstrumDialog
 
 
 class ContentView(QWidget):
@@ -249,6 +252,7 @@ class ContentView(QWidget):
     '''
         Action selection
     '''
+
     def on_add_noise(self):
         if len(self.y_original) == 0:
             msg = QMessageBox()
@@ -406,7 +410,23 @@ class ContentView(QWidget):
         self.show_processed_data()
 
     def on_filter_echo(self):
-        pass
+        ceps = cepstrum.real_cepstrum(np.array(self.y_original))
+
+        # y_data_scaled = np.interp(ceps, (ceps.min(), ceps.max()), (-10, +10))
+        #
+        # sample_size = len(ceps)
+        # x_data = np.linspace(0., 100., sample_size)
+        #
+        # points_1 = []
+        #
+        # for k in range(len(y_data_scaled)):
+        #     points_1.append(QPointF(x_data[k], y_data_scaled[k]))
+
+        index, result = CepstrumDialog.show_dialog(self, ceps[0:int(len(ceps)/2)])
+
+        if result:
+            print(index)
+            # self.show_processed_data()
 
     '''
         Filters
