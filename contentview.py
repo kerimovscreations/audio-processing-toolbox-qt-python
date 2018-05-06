@@ -152,7 +152,7 @@ class ContentView(QWidget):
         player_layout = QHBoxLayout()
 
         self.select_action_drop.addItems(["Add noise", "Filter", "Mute equipment",
-                                          "Mute voice", "Add echo", "Filter echo"])
+                                          "Mute vocal", "Add echo", "Filter echo"])
 
         player_layout.addWidget(self.select_action_drop)
 
@@ -246,7 +246,7 @@ class ContentView(QWidget):
             self.on_filter()
         elif self.select_action_drop.currentText() == "Mute equipment":
             self.on_mute_equipment()
-        elif self.select_action_drop.currentText() == "Mute voice":
+        elif self.select_action_drop.currentText() == "Mute vocal":
             self.on_mute_voice()
         elif self.select_action_drop.currentText() == "Add echo":
             self.on_add_echo()
@@ -254,7 +254,7 @@ class ContentView(QWidget):
             self.on_filter_echo()
 
     '''
-        Action selection
+        Noise addition
     '''
 
     def on_add_noise(self):
@@ -376,14 +376,24 @@ class ContentView(QWidget):
             self.show_processed_data()
 
     def on_mute_voice(self):
-        limit1 = 85 / self.sampling_rate
-        limit2 = 180 / self.sampling_rate
+        limit1 = (165*1) / self.sampling_rate
+        limit2 = (255*1) / self.sampling_rate
 
-        print([0.0, 0.000010, limit1 - 0.0001, limit1, limit2, limit2 + 0.0001, 0.000090, 1.0],
-              [0, 1, 1, 0, 0, 1, 1, 0])
+        limit3 = (165*2) / self.sampling_rate
+        limit6 = (255*8) / self.sampling_rate
+
+        print(limit1, limit2, limit3, limit6)
+
+        print([0.0, 0.0001, limit1 - 0.0001, limit1, limit2, limit2 + 0.0001, limit3 - 0.0001,
+                                        limit3, limit6,
+                                        limit6 + 0.0001, 0.9991, 1.0],
+                                       [0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0])
+
         design_filter = signal.firwin2(1000000,
-                                       [0.0, 0.0001, limit1 - 0.0001, limit1, limit2, limit2 + 0.0001, 0.9991, 1.0],
-                                       [0, 1, 1, 0, 0, 1, 1, 0])
+                                       [0.0, 0.0001, limit1 - 0.0001, limit1, limit2, limit2 + 0.0001, limit3 - 0.0001,
+                                        limit3, limit6,
+                                        limit6 + 0.0001, 0.9991, 1.0],
+                                       [0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0])
 
         self.y_processed = signal.convolve(self.y_original, design_filter, mode='same')
 
