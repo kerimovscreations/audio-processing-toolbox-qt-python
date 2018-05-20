@@ -14,6 +14,8 @@ import scipy.signal as signal
 from scipy.signal import lfilter
 import cepstrum
 import matplotlib.pyplot as plt
+import librosa
+import librosa.display
 
 from dragdroparea import DragDropArea
 from filterselectiondialog import FilterSelectionDialog
@@ -40,6 +42,8 @@ class ContentView(QWidget):
         self.x_data = []
         self.y_processed = []
         self.sampling_rate = 0
+
+        self.pathForVocalMute = ""
 
         self.select_action_drop = QComboBox()
 
@@ -206,6 +210,8 @@ class ContentView(QWidget):
     def on_file_upload(self, file_url):
         print(file_url[7:])
 
+        self.pathForVocalMute = file_url[7:]
+
         rate, data = wavfile.read(file_url[7:])
 
         self.sampling_rate = rate
@@ -218,7 +224,7 @@ class ContentView(QWidget):
         if len(self.y_processed) > 0:
             path = QFileDialog.getSaveFileName(self, 'Save File', os.getenv('HOME'), 'audio/wav')
             if path[0] != '':
-                data2 = np.asarray([self.y_processed, self.y_processed], dtype=np.int16).transpose()
+                data2 = np.asarray([self.y_processed, self.y_processed]).transpose()
                 wavfile.write(path[0], self.sampling_rate, data2)
             else:
                 msg = QMessageBox()
@@ -376,33 +382,34 @@ class ContentView(QWidget):
             self.show_processed_data()
 
     def on_mute_voice(self):
-        limit1 = (165*1) / self.sampling_rate
-        limit2 = (255*1) / self.sampling_rate
+        y, sr = librosa.load(self.pathForVocalMute, sr=self.sampling_rate)
 
-        limit3 = (165*2) / self.sampling_rate
-        limit6 = (255*8) / self.sampling_rate
+        S_full, phase = librosa.magphase(librosa.stft(y))
 
-        print(limit1, limit2, limit3, limit6)
+        S_filter = librosa.decompose.nn_filter(S_full,
+                                               aggregate=np.median,
+                                               metric='cosine',
+                                               width=int(librosa.time_to_frames(2, sr=sr)))
 
-        print([0.0, 0.0001, limit1 - 0.0001, limit1, limit2, limit2 + 0.0001, limit3 - 0.0001,
-                                        limit3, limit6,
-                                        limit6 + 0.0001, 0.9991, 1.0],
-                                       [0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0])
+        S_filter = np.minimum(S_full, S_filter)
 
-        design_filter = signal.firwin2(1000000,
-                                       [0.0, 0.0001, limit1 - 0.0001, limit1, limit2, limit2 + 0.0001, limit3 - 0.0001,
-                                        limit3, limit6,
-                                        limit6 + 0.0001, 0.9991, 1.0],
-                                       [0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0])
+        margin_i, margin_v = 2, 10
+        power = 2
 
-        self.y_processed = signal.convolve(self.y_original, design_filter, mode='same')
+        mask_i = librosa.util.softmask(S_filter,
+                                       margin_i * (S_full - S_filter),
+                                       power=power)
 
-        w1, h1 = signal.freqz(design_filter)
+        mask_v = librosa.util.softmask(S_full - S_filter,
+                                       margin_v * S_filter,
+                                       power=power)
 
-        result = FilterResponseDialog.show_dialog(parent=self, w1=w1, h1=h1)
+        S_foreground = mask_v * S_full
+        S_background = mask_i * S_full
 
-        if result:
-            self.show_processed_data()
+        self.y_processed = librosa.istft(S_background)
+
+        self.show_processed_data()
 
     def on_add_echo(self):
         if len(self.y_original) == 0:
@@ -508,7 +515,7 @@ class ContentView(QWidget):
         print("on_play")
 
         if len(self.y_processed) > 0:
-            data2 = np.asarray(self.y_processed, dtype=np.int16)
+            data2 = np.asarray(self.y_processed)
             sd.play(data2, self.sampling_rate)
         else:
             msg = QMessageBox()
@@ -525,7 +532,7 @@ class ContentView(QWidget):
         print("on_play_orig")
 
         if len(self.y_original) > 0:
-            data = np.asarray(self.y_original, dtype=np.int16)
+            data = np.asarray(self.y_original)
             sd.play(data, self.sampling_rate)
         else:
             msg = QMessageBox()
